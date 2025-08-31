@@ -233,7 +233,6 @@ function applyEventFilters(events, filter) {
         return matches;
     });
 }
-}
 
 function createCalendarFile(eventDetails) {
     const [year, month, day] = eventDetails.date.split('-').map(Number);
@@ -265,7 +264,43 @@ function createCalendarFile(eventDetails) {
     return value;
 }
 
+function createCustomEventsCalendar(customEvents) {
+    const events = customEvents.map(event => {
+        const [year, month, day] = event.date.split('-').map(Number);
+        const [hour, minute] = (event.time || '20:00').split(':').map(Number);
+
+        const start = [year, month, day, hour, minute];
+        const end = [year, month, day, hour + 2, minute]; // 2 hours duration
+
+        return {
+            start,
+            end,
+            title: event.title || 'Custom Event',
+            description: event.description || `Custom ${event.sport || 'sports'} event\\nCreated by user`,
+            location: event.location || 'TBD',
+            status: 'CONFIRMED',
+            categories: [event.sport || 'Sports', 'Custom'],
+            organizer: { name: 'Custom Event', email: 'custom@example.com' },
+            alarms: [{
+                action: 'display',
+                description: `${event.title || 'Custom Event'} reminder`,
+                trigger: { hours: 1, before: true }
+            }]
+        };
+    });
+
+    const { error, value } = createEvents(events);
+    
+    if (error) {
+        console.error('Error creating custom events calendar:', error);
+        throw new Error('Failed to create custom events calendar');
+    }
+
+    return value;
+}
+
 module.exports = {
     createSportsCalendar,
-    createCalendarFile
+    createCalendarFile,
+    createCustomEventsCalendar
 };

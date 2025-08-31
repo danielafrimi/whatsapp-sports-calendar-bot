@@ -7,7 +7,9 @@
     "start": "node src/bot.js",
     "dev": "nodemon src/bot.js",
     "setup": "node scripts/setup.js",
-    "calendar": "node scripts/create-calendar.js"
+    "calendar": "node scripts/create-calendar.js",
+    "test-custom": "node scripts/test-custom-events.js",
+    "custom-calendar": "node scripts/create-custom-calendar.js"
   },
   "repository": {
     "type": "git",

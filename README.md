@@ -25,21 +25,38 @@ npm start
 
 - 🤖 **WhatsApp Integration** - Connect via QR code
 - 🏟️ **Sports Calendar** - Tennis US Open + Spanish La Liga
+- 🛠️ **Custom Event Creation** - Create your own sports events step-by-step
 - 💬 **LLM Chat** - AI-powered conversations (optional)
+- 🎯 **Smart Filtering** - Filter by sports, teams, tournaments, keywords
 - 📅 **Calendar Files** - Generate .ics files for any calendar app
 - ⚡ **Easy Setup** - One command installation
 
 ## Usage 📱
 
-### Get Sports Calendar
+### 🛠️ Create Custom Events (NEW!)
+Send: **"customize events"** or **"create event"**
+Follow the guided steps:
+1. **Choose sport** (tennis, football, basketball, etc.)
+2. **Enter teams/players** ("Barcelona vs Real Madrid")  
+3. **Set date** ("tomorrow", "2024-12-25", "next week")
+4. **Set time** ("7pm", "19:30", "3:00pm")
+5. **Add location** ("Camp Nou", "Home", "Stadium")
+6. **Add more events** or finish
+
+### 🏟️ Get Sports Calendar
 Send any message containing:
 - `sports` / `tennis` / `football` / `la liga` / `us open`
 
-### Create Custom Events  
+### 🎯 Smart Filtering
+- **"tennis finals"** → Only tennis championship matches
+- **"Barcelona Real Madrid"** → Only these teams
+- **"basketball Lakers"** → Basketball team events
+
+### 📅 Quick Events  
 Send messages with:
 - `calendar` / `event` / `meeting` / `appointment`
 
-### Regular Chat
+### 💬 Regular Chat
 - Any other message triggers AI chat (if API key provided)
 
 ## Sports Events Included 🎾⚽
@@ -77,7 +94,9 @@ whatsapp-sports-calendar-bot/
 ```bash
 npm start              # Start WhatsApp bot
 npm run setup         # Initial setup
-npm run calendar      # Create calendar file directly
+npm run calendar      # Create sports calendar file directly
+npm run test-custom    # Test custom event creation
+npm run custom-calendar # Create filtered custom calendar
 npm run dev           # Development mode (auto-restart)
 ```
 

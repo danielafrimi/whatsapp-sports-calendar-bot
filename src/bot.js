@@ -1,7 +1,8 @@
 const { default: makeWASocket, DisconnectReason, useMultiFileAuthState } = require('@whiskeysockets/baileys');
 const qrcode = require('qrcode-terminal');
 const OpenAI = require('openai');
-const { createCalendarFile, createSportsCalendar } = require('./calendar');
+const { createCalendarFile, createSportsCalendar, createCustomEventsCalendar } = require('./calendar');
+const EventCustomizer = require('./eventCustomizer');
 
 class WhatsAppSportsBot {
     constructor() {
@@ -9,8 +10,11 @@ class WhatsAppSportsBot {
             apiKey: process.env.OPENAI_API_KEY
         }) : null;
         
+        this.eventCustomizer = new EventCustomizer();
+        
         console.log('🤖 WhatsApp Sports Calendar Bot');
         console.log(this.openai ? '✅ AI chat enabled' : '⚠️  AI chat disabled (no API key)');
+        console.log('🛠️ Event customization enabled');
     }
 
     async start() {
@@ -18,7 +22,6 @@ class WhatsAppSportsBot {
         
         const sock = makeWASocket({
             auth: state,
-            printQRInTerminal: true,
         });
 
         sock.ev.on('connection.update', (update) => {
@@ -26,6 +29,8 @@ class WhatsAppSportsBot {
             
             if (qr) {
                 console.log('\n📱 Scan this QR code with WhatsApp:');
+                qrcode.generate(qr, { small: true });
+                console.log('\nOpen WhatsApp → Settings → Linked Devices → Link a Device → Scan QR code above');
             }
             
             if (connection === 'close') {
@@ -57,6 +62,13 @@ class WhatsAppSportsBot {
         console.log(`📨 ${messageText}`);
 
         try {
+            // Check for custom event creation first
+            const customizationResult = await this.eventCustomizer.parseCustomEvent(messageText, chatId);
+            if (customizationResult) {
+                await this.handleCustomization(sock, chatId, customizationResult);
+                return;
+            }
+
             // Determine intent
             if (this.isCalendarRequest(messageText)) {
                 await this.handleCalendarRequest(sock, chatId, messageText);
@@ -136,12 +148,40 @@ class WhatsAppSportsBot {
         }
     }
 
+    async handleCustomization(sock, chatId, customizationResult) {
+        const { type, message, events } = customizationResult;
+
+        if (type === 'customization_complete' && events) {
+            // Generate calendar for custom events
+            try {
+                const calendarData = createCustomEventsCalendar(events);
+                const filename = `custom_events_${new Date().toISOString().split('T')[0]}.ics`;
+                
+                await sock.sendMessage(chatId, {
+                    document: Buffer.from(calendarData),
+                    fileName: filename,
+                    mimetype: 'text/calendar'
+                });
+                
+                await sock.sendMessage(chatId, { text: message });
+            } catch (error) {
+                console.error('Custom calendar error:', error);
+                await sock.sendMessage(chatId, { 
+                    text: '❌ Error creating custom calendar. Please try again.' 
+                });
+            }
+        } else {
+            // Send customization step message
+            await sock.sendMessage(chatId, { text: message });
+        }
+    }
+
     async handleChat(sock, chatId, messageText) {
         if (!this.openai) {
             const responses = [
-                "Hello! I can help you create sports calendars and events. Try asking about tennis or football!",
-                "Hi there! Send me 'sports calendar' to get tennis and football events.",
-                "Hey! I specialize in creating calendar files for sports events. What do you need?"
+                "Hello! I can create sports calendars and custom events. Try:\n• 'sports calendar' → Get tennis/football events\n• 'customize events' → Create your own events",
+                "Hi! I can help with:\n• Sports calendars (tennis, football)\n• Custom event creation\n• Calendar file generation",
+                "Hey! Send me:\n• 'tennis finals' → Tennis events only\n• 'customize events' → Create personal events\n• 'sports calendar' → All events"
             ];
             const response = responses[Math.floor(Math.random() * responses.length)];
             await sock.sendMessage(chatId, { text: response });
