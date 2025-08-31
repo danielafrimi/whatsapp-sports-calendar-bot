@@ -1,7 +1,7 @@
 const { createEvent, createEvents } = require('ics');
 
-function createSportsCalendar() {
-    const events = [
+function createSportsCalendar(filter = null) {
+    const allEvents = [
         // Tennis US Open Men's Events
         {
             start: [2024, 9, 6, 19, 0], // Sept 6, 2024, 7:00 PM UTC
@@ -10,6 +10,9 @@ function createSportsCalendar() {
             description: 'US Open Tennis Championship - Men\'s Singles Semifinal\nArthur Ashe Stadium',
             location: 'Arthur Ashe Stadium, Flushing Meadows, New York',
             categories: ['Tennis', 'US Open'],
+            sport: 'tennis',
+            tournament: 'US Open',
+            teams: ['Alcaraz', 'Medvedev'],
             status: 'CONFIRMED',
             alarms: [{
                 action: 'display',
@@ -24,6 +27,9 @@ function createSportsCalendar() {
             description: 'US Open Tennis Championship - Men\'s Singles Semifinal\nArthur Ashe Stadium',
             location: 'Arthur Ashe Stadium, Flushing Meadows, New York',
             categories: ['Tennis', 'US Open'],
+            sport: 'tennis',
+            tournament: 'US Open',
+            teams: ['Djokovic', 'Fritz'],
             status: 'CONFIRMED',
             alarms: [{
                 action: 'display',
@@ -38,6 +44,10 @@ function createSportsCalendar() {
             description: 'US Open Tennis Championship - Men\'s Singles Final\nArthur Ashe Stadium\nTop players competing for the Grand Slam title',
             location: 'Arthur Ashe Stadium, Flushing Meadows, New York',
             categories: ['Tennis', 'US Open'],
+            sport: 'tennis',
+            tournament: 'US Open',
+            teams: ['Final'],
+            keywords: ['final', 'championship'],
             status: 'CONFIRMED',
             alarms: [{
                 action: 'display',
@@ -54,6 +64,9 @@ function createSportsCalendar() {
             description: 'La Liga - Spanish Football League\nJornada 4\nSantiago Bernabéu Stadium',
             location: 'Santiago Bernabéu Stadium, Madrid, Spain',
             categories: ['Football', 'La Liga', 'Real Madrid'],
+            sport: 'football',
+            tournament: 'La Liga',
+            teams: ['Real Madrid', 'Athletic Bilbao'],
             status: 'CONFIRMED',
             alarms: [{
                 action: 'display',
@@ -68,6 +81,9 @@ function createSportsCalendar() {
             description: 'La Liga - Spanish Football League\nJornada 7\nSantiago Bernabéu Stadium',
             location: 'Santiago Bernabéu Stadium, Madrid, Spain',
             categories: ['Football', 'La Liga', 'Real Madrid'],
+            sport: 'football',
+            tournament: 'La Liga',
+            teams: ['Real Madrid', 'Villarreal CF'],
             status: 'CONFIRMED',
             alarms: [{
                 action: 'display',
@@ -84,6 +100,9 @@ function createSportsCalendar() {
             description: 'La Liga - Spanish Football League\nJornada 5\nCamp Nou Stadium',
             location: 'Camp Nou, Barcelona, Spain',
             categories: ['Football', 'La Liga', 'Barcelona'],
+            sport: 'football',
+            tournament: 'La Liga',
+            teams: ['Barcelona', 'Girona FC'],
             status: 'CONFIRMED',
             alarms: [{
                 action: 'display',
@@ -98,6 +117,9 @@ function createSportsCalendar() {
             description: 'La Liga - Spanish Football League\nJornada 8\nCamp Nou Stadium',
             location: 'Camp Nou, Barcelona, Spain',
             categories: ['Football', 'La Liga', 'Barcelona'],
+            sport: 'football',
+            tournament: 'La Liga',
+            teams: ['Barcelona', 'Sevilla FC'],
             status: 'CONFIRMED',
             alarms: [{
                 action: 'display',
@@ -114,6 +136,9 @@ function createSportsCalendar() {
             description: 'La Liga - Spanish Football League\nJornada 6\nMetropolitano Stadium',
             location: 'Wanda Metropolitano, Madrid, Spain',
             categories: ['Football', 'La Liga', 'Atletico Madrid'],
+            sport: 'football',
+            tournament: 'La Liga',
+            teams: ['Atletico Madrid', 'Real Sociedad'],
             status: 'CONFIRMED',
             alarms: [{
                 action: 'display',
@@ -128,6 +153,9 @@ function createSportsCalendar() {
             description: 'La Liga - Spanish Football League\nJornada 9\nMetropolitano Stadium',
             location: 'Wanda Metropolitano, Madrid, Spain',
             categories: ['Football', 'La Liga', 'Atletico Madrid'],
+            sport: 'football',
+            tournament: 'La Liga',
+            teams: ['Atletico Madrid', 'Real Betis'],
             status: 'CONFIRMED',
             alarms: [{
                 action: 'display',
@@ -137,7 +165,19 @@ function createSportsCalendar() {
         }
     ];
 
-    const { error, value } = createEvents(events);
+    // Apply filters if provided
+    let filteredEvents = allEvents;
+    if (filter) {
+        filteredEvents = applyEventFilters(allEvents, filter);
+    }
+
+    // Remove filtering metadata before creating calendar
+    const cleanEvents = filteredEvents.map(event => {
+        const { sport, tournament, teams, keywords, ...cleanEvent } = event;
+        return cleanEvent;
+    });
+
+    const { error, value } = createEvents(cleanEvents);
     
     if (error) {
         console.error('Error creating sports calendar:', error);
@@ -145,6 +185,54 @@ function createSportsCalendar() {
     }
 
     return value;
+}
+
+function applyEventFilters(events, filter) {
+    return events.filter(event => {
+        // Include all if no specific filters
+        if (!filter || (!filter.sports?.length && !filter.teams?.length && !filter.tournaments?.length && !filter.keywords?.length)) {
+            return true;
+        }
+
+        let matches = false;
+
+        // Check sports filter
+        if (filter.sports?.length > 0) {
+            matches = matches || filter.sports.some(sport => 
+                event.sport?.toLowerCase() === sport.toLowerCase()
+            );
+        }
+
+        // Check teams filter
+        if (filter.teams?.length > 0) {
+            matches = matches || filter.teams.some(team => 
+                event.teams?.some(eventTeam => 
+                    eventTeam.toLowerCase().includes(team.toLowerCase())
+                )
+            );
+        }
+
+        // Check tournaments filter
+        if (filter.tournaments?.length > 0) {
+            matches = matches || filter.tournaments.some(tournament => 
+                event.tournament?.toLowerCase().includes(tournament.toLowerCase())
+            );
+        }
+
+        // Check keywords filter
+        if (filter.keywords?.length > 0) {
+            matches = matches || filter.keywords.some(keyword => 
+                event.keywords?.some(eventKeyword => 
+                    eventKeyword.toLowerCase().includes(keyword.toLowerCase())
+                ) ||
+                event.title?.toLowerCase().includes(keyword.toLowerCase()) ||
+                event.description?.toLowerCase().includes(keyword.toLowerCase())
+            );
+        }
+
+        return matches;
+    });
+}
 }
 
 function createCalendarFile(eventDetails) {

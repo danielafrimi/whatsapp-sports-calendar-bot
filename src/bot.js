@@ -85,24 +85,29 @@ class WhatsAppSportsBot {
     }
 
     async handleSportsCalendar(sock, chatId, messageText) {
-        await sock.sendMessage(chatId, { text: '🏟️ Creating sports calendar...' });
+        await sock.sendMessage(chatId, { text: '🏟️ Analyzing your sports preferences...' });
 
         try {
-            const calendarData = createSportsCalendar();
+            // Use LLM to extract sports filters from message
+            const sportsFilter = await this.extractSportsFilter(messageText);
+            
+            // Generate filtered calendar
+            const calendarData = createSportsCalendar(sportsFilter);
             
             await sock.sendMessage(chatId, {
                 document: Buffer.from(calendarData),
-                fileName: 'sports_events.ics',
+                fileName: `${sportsFilter.filename || 'sports_events'}.ics`,
                 mimetype: 'text/calendar'
             });
 
             await sock.sendMessage(chatId, { 
-                text: '✅ Sports calendar created!\n\n🎾 Tennis US Open (Men)\n⚽ La Liga (Real Madrid, Barcelona, Atlético)\n\n📱 Import to your calendar app!' 
+                text: `✅ Custom sports calendar created!\n\n${sportsFilter.summary}\n\n📱 Import to your calendar app!` 
             });
 
         } catch (error) {
+            console.error('Sports calendar error:', error);
             await sock.sendMessage(chatId, { 
-                text: '❌ Error creating sports calendar. Try again later.' 
+                text: '❌ Error creating sports calendar. Try: "tennis matches" or "football Barcelona Real Madrid"' 
             });
         }
     }
@@ -164,6 +169,100 @@ class WhatsAppSportsBot {
                 text: "I can help with sports calendars! Try asking about tennis or football events." 
             });
         }
+    }
+
+    async extractSportsFilter(messageText) {
+        if (!this.openai) {
+            // Fallback without LLM
+            return this.parseSimpleSportsFilter(messageText);
+        }
+
+        try {
+            const response = await this.openai.chat.completions.create({
+                model: "gpt-3.5-turbo",
+                messages: [
+                    {
+                        role: "system", 
+                        content: `Extract sports preferences and return JSON:
+{
+  "sports": ["tennis", "football", "basketball"],
+  "teams": ["Barcelona", "Real Madrid", "Lakers"],
+  "tournaments": ["US Open", "La Liga", "NBA"],
+  "keywords": ["final", "champions"],
+  "filename": "suggested_filename",
+  "summary": "Brief description of included events"
+}
+
+Available options:
+Sports: tennis, football/soccer, basketball, american-football, hockey, baseball
+Teams: Barcelona, Real Madrid, Atletico Madrid, Lakers, Warriors, etc.
+Tournaments: US Open, La Liga, NBA, NFL, Champions League, etc.`
+                    },
+                    { role: "user", content: messageText }
+                ],
+                max_tokens: 300
+            });
+
+            const jsonStr = response.choices[0].message.content.trim();
+            const filter = JSON.parse(jsonStr);
+            
+            return this.validateSportsFilter(filter);
+
+        } catch (error) {
+            console.error('LLM sports filter error:', error);
+            return this.parseSimpleSportsFilter(messageText);
+        }
+    }
+
+    parseSimpleSportsFilter(messageText) {
+        const text = messageText.toLowerCase();
+        const filter = {
+            sports: [],
+            teams: [],
+            tournaments: [],
+            keywords: [],
+            filename: 'sports_events',
+            summary: '🏟️ Mixed sports events'
+        };
+
+        // Detect sports
+        if (text.includes('tennis')) filter.sports.push('tennis');
+        if (text.includes('football') || text.includes('soccer')) filter.sports.push('football');
+        if (text.includes('basketball')) filter.sports.push('basketball');
+        if (text.includes('hockey')) filter.sports.push('hockey');
+
+        // Detect teams
+        if (text.includes('barcelona') || text.includes('barca')) filter.teams.push('Barcelona');
+        if (text.includes('real madrid') || text.includes('madrid')) filter.teams.push('Real Madrid');
+        if (text.includes('atletico') || text.includes('atlético')) filter.teams.push('Atletico Madrid');
+        if (text.includes('lakers')) filter.teams.push('Lakers');
+
+        // Detect tournaments
+        if (text.includes('us open')) filter.tournaments.push('US Open');
+        if (text.includes('la liga')) filter.tournaments.push('La Liga');
+        if (text.includes('champions league')) filter.tournaments.push('Champions League');
+
+        // Generate summary
+        if (filter.sports.length > 0) {
+            filter.summary = `🏟️ ${filter.sports.join(', ')} events`;
+            filter.filename = filter.sports.join('_') + '_events';
+        }
+        if (filter.teams.length > 0) {
+            filter.summary += `\n⭐ Teams: ${filter.teams.join(', ')}`;
+        }
+
+        return filter;
+    }
+
+    validateSportsFilter(filter) {
+        return {
+            sports: filter.sports || [],
+            teams: filter.teams || [],
+            tournaments: filter.tournaments || [],
+            keywords: filter.keywords || [],
+            filename: filter.filename || 'custom_sports_events',
+            summary: filter.summary || '🏟️ Custom sports calendar'
+        };
     }
 
     async extractEventDetails(messageText) {
