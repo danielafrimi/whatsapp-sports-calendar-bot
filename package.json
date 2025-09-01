@@ -6,6 +6,9 @@
   "scripts": {
     "start": "node src/bot.js",
     "telegram": "node telegram-bot.js",
+    "conversation": "node conversational-bot.js",
+    "sports": "node quick-sports.js",
+    "cli": "node sports-cli.js",
     "dev": "nodemon src/bot.js",
     "setup": "node scripts/setup.js",
     "calendar": "node scripts/create-calendar.js",
